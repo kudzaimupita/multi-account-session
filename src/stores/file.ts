@@ -150,12 +150,14 @@ function isSessionRecord(value: unknown): value is SessionRecord {
     typeof value.id === 'string' &&
     typeof value.defaultAccountId === 'string' &&
     typeof value.createdAt === 'number' &&
+    typeof value.nextIndex === 'number' &&
     typeof value.expiresAt === 'number' &&
     Array.isArray(value.accounts) &&
     value.accounts.every(
       (account: unknown) =>
         isObject(account) &&
         typeof account.accountId === 'string' &&
+        typeof account.index === 'number' &&
         typeof account.signedInAt === 'number' &&
         typeof account.lastActiveAt === 'number' &&
         isObject(account.profile) &&

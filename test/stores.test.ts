@@ -21,7 +21,8 @@ describeStoreConformance('FileSessionStore', async () => {
 
 const sample: SessionRecord = {
   id: 's1',
-  accounts: [{ accountId: 'a1', profile: {}, signedInAt: 1, lastActiveAt: 1 }],
+  accounts: [{ accountId: 'a1', index: 0, profile: {}, signedInAt: 1, lastActiveAt: 1 }],
+  nextIndex: 1,
   defaultAccountId: 'a1',
   createdAt: 1,
   expiresAt: 100,

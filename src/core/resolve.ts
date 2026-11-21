@@ -48,7 +48,7 @@ export function accountPath(index: number, path = '/', prefix = 'u'): string {
 /**
  * Decide which account a request acts as.
  *
- * With an explicit index the account at that position is used, and an index
+ * With an explicit index the account holding that index is used, and an index
  * that names no account resolves to nothing. It never falls back to the
  * default, because quietly answering as a different account than the one the
  * tab asked for is worse than asking the user to choose again. Without an
@@ -61,13 +61,12 @@ export function resolveActiveAccount(
   if (!session || session.accounts.length === 0) return { kind: 'none', reason: 'no_session' };
 
   if (explicitIndex !== undefined) {
-    const account = session.accounts[explicitIndex];
+    const account = session.accounts.find((a) => a.index === explicitIndex);
     if (!account) return { kind: 'none', reason: 'no_such_index' };
-    return { kind: 'active', account, index: explicitIndex, explicit: true };
+    return { kind: 'active', account, index: account.index, explicit: true };
   }
 
-  const index = session.accounts.findIndex((a) => a.accountId === session.defaultAccountId);
-  const account = session.accounts[index];
+  const account = session.accounts.find((a) => a.accountId === session.defaultAccountId);
   if (!account) return { kind: 'none', reason: 'no_session' };
-  return { kind: 'active', account, index, explicit: false };
+  return { kind: 'active', account, index: account.index, explicit: false };
 }

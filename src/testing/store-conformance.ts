@@ -16,9 +16,16 @@ function record(id: string, overrides: Partial<SessionRecord> = {}): SessionReco
   return {
     id,
     accounts: [
-      { accountId: 'a1', profile: { name: 'One' }, signedInAt: 1_000, lastActiveAt: 1_000 },
-      { accountId: 'a2', profile: {}, signedInAt: 2_000, lastActiveAt: 2_500 },
+      {
+        accountId: 'a1',
+        index: 0,
+        profile: { name: 'One' },
+        signedInAt: 1_000,
+        lastActiveAt: 1_000,
+      },
+      { accountId: 'a2', index: 3, profile: {}, signedInAt: 2_000, lastActiveAt: 2_500 },
     ],
+    nextIndex: 4,
     defaultAccountId: 'a1',
     createdAt: 1_000,
     expiresAt: 10_000,

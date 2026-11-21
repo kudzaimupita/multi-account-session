@@ -7,6 +7,12 @@ export type AccountProfile = Readonly<Record<string, string>>;
 export interface AccountEntry {
   /** The application's own identifier for the account. */
   readonly accountId: string;
+  /**
+   * The number that names this account in URLs (`/u/<index>/`). Given out in
+   * sign-in order and never reused within a session, so an index that a tab
+   * holds can stop working but can never start meaning a different account.
+   */
+  readonly index: number;
   readonly profile: AccountProfile;
   /** When this account was signed in to this session. Drives absolute expiry. */
   readonly signedInAt: number;
@@ -17,8 +23,10 @@ export interface AccountEntry {
 export interface SessionRecord {
   /** Opaque random identifier. Replaced on every sign-in and sign-out. */
   readonly id: string;
-  /** Signed-in accounts in sign-in order. The position is the account index. */
+  /** Signed-in accounts in sign-in order. */
   readonly accounts: readonly AccountEntry[];
+  /** The index the next new account will get. Only ever goes up. */
+  readonly nextIndex: number;
   /** Account used when a request names no explicit index. Always in `accounts`. */
   readonly defaultAccountId: string;
   readonly createdAt: number;

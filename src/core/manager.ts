@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import { MultiAccountError } from '../errors.ts';
+import { MAX_ACCOUNT_INDEX } from './resolve.ts';
 import type { AccountEntry, Clock, SessionRecord, SessionStore, SignInInput } from '../types.ts';
 
 const MINUTE = 60_000;
@@ -78,7 +79,7 @@ export class SessionManager {
   /**
    * Sign an account in. Adds it to the session named by `sessionId`, or starts
    * a new session. Signing in an account that is already present refreshes it
-   * in place. The session id always changes.
+   * in place and keeps its index. The session id always changes.
    */
   async addAccount(sessionId: string | undefined, input: SignInInput): Promise<SignInResult> {
     const accountId = input.accountId;
@@ -92,36 +93,45 @@ export class SessionManager {
 
     const existing = await this.load(sessionId);
     const now = this.#clock();
-    const entry: AccountEntry = {
-      accountId,
-      profile: { ...input.profile },
-      signedInAt: now,
-      lastActiveAt: now,
-    };
-
     const accounts = existing ? [...existing.accounts] : [];
-    let index = accounts.findIndex((a) => a.accountId === accountId);
-    if (index === -1) {
+    let nextIndex = existing?.nextIndex ?? 0;
+
+    const position = accounts.findIndex((a) => a.accountId === accountId);
+    const known = accounts[position];
+    if (!known) {
       if (accounts.length >= this.maxAccounts) {
         throw new MultiAccountError(
           'too_many_accounts',
           `a session holds at most ${this.maxAccounts} accounts`,
         );
       }
-      index = accounts.push(entry) - 1;
-    } else {
-      accounts[index] = entry;
+      if (nextIndex > MAX_ACCOUNT_INDEX) {
+        throw new MultiAccountError(
+          'too_many_accounts',
+          'this session has used up its account indices; sign out of all accounts to start again',
+        );
+      }
     }
+    const entry: AccountEntry = {
+      accountId,
+      index: known ? known.index : nextIndex++,
+      profile: { ...input.profile },
+      signedInAt: now,
+      lastActiveAt: now,
+    };
+    if (known) accounts[position] = entry;
+    else accounts.push(entry);
 
     const session = this.#finalise({
       id: this.#generateId(),
       accounts,
+      nextIndex,
       defaultAccountId: existing?.defaultAccountId ?? accountId,
       createdAt: existing?.createdAt ?? now,
       expiresAt: 0,
     });
     await this.#rotate(existing, session);
-    return { session, index };
+    return { session, index: entry.index };
   }
 
   /**

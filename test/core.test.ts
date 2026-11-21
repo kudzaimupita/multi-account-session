@@ -61,6 +61,36 @@ describe('adding accounts', () => {
     expect(third.session.defaultAccountId).toBe('ada');
   });
 
+  it('never reuses an index within a session', async () => {
+    let session = await signIn('a', 'b');
+    session = (await manager.removeAccount(session.id, 'a')) ?? session;
+    const added = await manager.addAccount(session.id, { accountId: 'c' });
+    expect(added.index).toBe(2);
+    expect(added.session.accounts.map((a) => [a.accountId, a.index])).toEqual([
+      ['b', 1],
+      ['c', 2],
+    ]);
+    // Signing 'a' in again makes it a new entry with a new index.
+    const back = await manager.addAccount(added.session.id, { accountId: 'a' });
+    expect(back.index).toBe(3);
+  });
+
+  it('starts indices from zero again in a new session', async () => {
+    const session = await signIn('a', 'b');
+    await manager.removeAll(session.id);
+    expect((await manager.addAccount(session.id, { accountId: 'b' })).index).toBe(0);
+  });
+
+  it('refuses new accounts once the index space is used up', async () => {
+    const session = await signIn('a');
+    await store.update(session.id, (current) => ({ ...current, nextIndex: 1000 }));
+    await expect(manager.addAccount(session.id, { accountId: 'b' })).rejects.toMatchObject({
+      code: 'too_many_accounts',
+    });
+    // An account that is already present can still sign in again.
+    expect((await manager.addAccount(session.id, { accountId: 'a' })).index).toBe(0);
+  });
+
   it('refreshes an account that signs in again, in place', async () => {
     const session = await signIn('ada', 'grace');
     clock.advance(HOUR);
@@ -234,6 +264,10 @@ describe('resolving the active account', () => {
   it('does not fall back to the default for an index that names no account', async () => {
     const session = await signIn('a', 'b');
     expect(resolveActiveAccount(session, 2)).toEqual({ kind: 'none', reason: 'no_such_index' });
+    const without = await manager.removeAccount(session.id, 'a');
+    expect(resolveActiveAccount(without, 0)).toEqual({ kind: 'none', reason: 'no_such_index' });
+    expect(resolveActiveAccount(without, 1)).toMatchObject({ account: { accountId: 'b' } });
+    expect(resolveActiveAccount(without)).toMatchObject({ index: 1, explicit: false });
     expect(resolveActiveAccount(session, -1)).toEqual({ kind: 'none', reason: 'no_such_index' });
     expect(resolveActiveAccount(session, 0.5)).toEqual({ kind: 'none', reason: 'no_such_index' });
   });
